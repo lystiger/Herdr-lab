@@ -6,7 +6,7 @@ A seven-agent coding cockpit for coordinating Claude, Codex and Gemini CLI worke
 
 ## Requirements
 
-- [Herdr](https://github.com/lystiger/Hermes-lab) installed and its server running
+- Hermes Runtime (which provides the `herdr` CLI) installed and its server running
 - Claude Code, Codex CLI and Agy CLI installed and authenticated
 - Bash, Python 3, and Git
 

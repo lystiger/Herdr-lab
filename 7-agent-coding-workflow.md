@@ -1,8 +1,14 @@
 # 7-Agent Coding Workflow
 
-> **Scope:** This document defines the **workflow layer only** for the coding cockpit.
+> **Scope:** This document defines the experimental terminal workflow, role
+> prompts, and pane layout for Herdr-lab.
 >
-> It does **not** yet integrate Paperclip, LysStack, Hermes, vector memory, long-term telemetry, or autonomous task scheduling. Those can be attached after this workflow is stable.
+> Herdr-lab is not the authoritative engineering scheduler, and its cockpit
+> board is not canonical job/task state. Hermes owns engineering execution,
+> orchestration, jobs/tasks, scheduling, agent execution, worktrees, verification,
+> event history, recovery, and provider capacity. LysStack supplies bounded
+> engineering context, policy, decisions, and long-term memory. LysControl is the
+> operator UI for Hermes REST/SSE APIs.
 
 ---
 
@@ -721,50 +727,25 @@ Provides:
 - cockpit topology
 - basic coordination
 
-## Phase 2 — Harness / Orchestration
-Integrate **LysStack** around the workflow.
+## Phase 2 — Hermes Runtime Boundary
 
-Potential responsibilities:
+Herdr-lab remains an experimental cockpit for terminal layout, role prompts, and
+local coordination. It does not become a scheduler or canonical job/task store.
+For governed engineering work, Hermes remains authoritative for orchestration,
+job/task state, agent execution, worktrees, verification, event history,
+recovery, and provider capacity.
 
-- launcher/runtime abstraction
-- agent lifecycle management
-- structured event logging
-- prompt injection
-- shared task state
-- automatic context monitoring
-- session handoff automation
-- tool routing
-- model/provider abstraction
-- telemetry
-- retry/recovery logic
+## Phase 3 — Bounded Project Context
 
-## Phase 3 — Paperclip Integration
-Use Paperclip only after its responsibilities are clearly mapped against LysStack.
+LysStack provides engineering knowledge, bounded project context, policy,
+decisions, constraints, and long-term memory. A Hermes job can consume a bounded
+selection of that context. LysStack does not execute agents or own Hermes runtime
+job/task state.
 
-Potential integration points:
+## Phase 4 — Operator View
 
-- task/project orchestration
-- agent assignment
-- persistent work state
-- workflow visualization
-- human approval gates
-- scheduling
-- task dependencies
-
-Avoid duplicating capabilities already owned by LysStack.
-
-## Phase 4 — Memory / Hermes / Elysia
-Attach longer-lived intelligence after execution is stable.
-
-Potential responsibilities:
-
-- retrieve prior decisions
-- project memory
-- engineering preferences
-- reusable lessons
-- historical failure patterns
-- cross-session context
-- future Elysia orchestration
+LysControl provides visualization, telemetry, and operator controls through
+Hermes REST/SSE/API contracts. It does not execute agents or own scheduling.
 
 ---
 
