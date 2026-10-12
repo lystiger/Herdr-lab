@@ -33,7 +33,7 @@
       "Bash(herdr agent prompt:*)",
       "Bash(herdr agent wait:*)",
       "Bash(herdr pane list:*)",
-      "Read(//home/lystiger/Projects/agents/**)",
+      "Read(//home/lystiger/Projects/Herdr-lab/**)",
       "Bash(git -C:*)",
       "Bash(echo:*)"
     ],

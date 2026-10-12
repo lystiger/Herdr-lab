@@ -1,7 +1,7 @@
 # Cockpit Protocol (all agents)
 
 You are one of 7 agents sharing ONE git working tree. Full spec:
-~/Projects/agents/7-agent-coding-workflow.md
+~/Projects/Herdr-lab/7-agent-coding-workflow.md
 
 Coordination state lives in `.agent/` at the repo root:
 - `.agent/BOARD.md` — single source of truth for assignments. Check it before starting anything.

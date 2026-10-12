@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 7-agent coding cockpit launcher for herdr.
-# Spec: ~/Projects/agents/7-agent-coding-workflow.md
+# Spec: ~/Projects/Herdr-lab/7-agent-coding-workflow.md
 #
 # Usage: cockpit.sh [REPO_DIR] [--no-bootstrap] [--init-only]
 #   REPO_DIR        repository to work on (default: current directory)
