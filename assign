@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# Hand jobs to agents in the six job panes started by six.sh. Run it inside the repository.
+#
+#   assign N claude|codex|agy "job"   start that agent on the job in pane N (1-6),
+#                                      in its own worktree on branch six/N-<slug>
+#   assign status                     one line per pane
+#   assign free N                     stop pane N's agent so the pane can take a new job
+set -euo pipefail
+
+die() { echo "assign: $*" >&2; exit 1; }
+. "$(dirname "$(readlink -f "$0")")/six-lib.sh"
+REPO="$(git rev-parse --show-toplevel 2>/dev/null)" || die "run it inside the repository"
+NAME="$(basename "$REPO")"
+STATE="$REPO/.six"
+[[ -f $STATE/panes ]] || die "no six workspace for $NAME; start one with six.sh"
+
+pane_of() { sed -n "${1}p" "$STATE/panes"; }
+status_of() {  # the agent's herdr status, or "free" when the pane has no agent
+  herdr agent get "$NAME-job$1" 2>/dev/null \
+    | python3 -c "import json,sys;print(json.load(sys.stdin)['result']['agent']['agent_status'])" 2>/dev/null \
+    || echo free
+}
+check_n() { [[ ${1:-} =~ ^[1-6]$ ]] || die "pane must be 1-6, got '${1:-}'"; }
+
+case "${1:-}" in
+  status)
+    for n in 1 2 3 4 5 6; do
+      meta=""; [[ -f $STATE/job$n.meta ]] && meta="$(cat "$STATE/job$n.meta")"
+      printf '%s  %-8s %s\n' "$n" "$(status_of "$n")" "$meta"
+    done
+    ;;
+  free)
+    check_n "${2:-}"; n="$2"
+    if [[ $(status_of "$n") != free ]]; then
+      herdr agent send-keys "$NAME-job$n" esc >/dev/null 2>&1 || true  # close an open dialog first
+      sleep 1
+      herdr agent prompt "$NAME-job$n" "/exit" >/dev/null 2>&1 || true
+      for _ in $(seq 1 15); do [[ $(status_of "$n") == free ]] && break; sleep 1; done
+      for _ in 1 2 3; do  # still running: interrupt it
+        [[ $(status_of "$n") == free ]] && break
+        herdr agent send-keys "$NAME-job$n" ctrl+c >/dev/null 2>&1 || true
+        sleep 2
+      done
+      [[ $(status_of "$n") == free ]] || die "pane $n's agent did not exit; close it by hand"
+    fi
+    rm -f "$STATE/job$n.meta"
+    herdr pane rename "$(pane_of "$n")" "$n · free" >/dev/null
+    echo "pane $n free (its worktree and branch are kept)"
+    ;;
+  *)
+    check_n "${1:-}"; n="$1"; kind="${2:-}"; job="${3:-}"
+    case "$kind" in claude|codex|agy) ;; *) die "agent must be claude, codex or agy" ;; esac
+    [[ -n $job ]] || die "give the job as the third argument"
+    st="$(status_of "$n")"
+    [[ $st == free ]] || die "pane $n is busy ($st); wait, or run: assign free $n"
+
+    slug="$(tr '[:upper:]' '[:lower:]' <<<"$job" | tr -cs 'a-z0-9' '-' | sed 's/^-//' | cut -c1-30 | sed 's/-$//')"
+    branch="six/$n-$slug"
+    git -C "$REPO" show-ref -q --verify "refs/heads/$branch" && branch="$branch-$(date +%H%M%S)"
+    wt="$HOME/six-worktrees/$NAME/job$n"
+    if [[ -d $wt ]]; then
+      [[ -z $(git -C "$wt" status --porcelain) ]] || die "$wt has uncommitted work; commit or remove it first"
+      git -C "$REPO" worktree remove "$wt"
+    fi
+    git -C "$REPO" worktree add -q -b "$branch" "$wt" HEAD
+
+    # Codex's sandbox keeps .git read-only, so the orchestrator commits its work.
+    if [[ $kind == codex ]]; then finish="leave your changes uncommitted (the orchestrator commits them)"
+    else finish="commit on your branch"; fi
+    cat > "$STATE/job$n.md" <<EOF
+$job
+
+---
+You work alone in the git worktree $wt, on branch $branch. Other agents do other jobs in other worktrees: leave them alone.
+When you finish, run the project's tests, $finish, and end with one line: DONE: <what you did>.
+If you cannot finish, end with one line: STUCK: <why>.
+EOF
+
+    case "$kind" in
+      claude) args=(--permission-mode auto --add-dir "$STATE") ;;
+      codex)  args=(-s workspace-write -a never --add-dir "$STATE") ;;
+      agy)    args=(--mode accept-edits --add-dir "$REPO/.git" --add-dir "$STATE") ;;
+    esac
+    pane="$(pane_of "$n")"
+    herdr pane send-keys "$pane" ctrl+c >/dev/null  # clear anything left on the shell's input line
+    sleep 0.3
+    herdr pane run "$pane" "cd $(printf '%q' "$wt")" >/dev/null
+    sleep 0.5
+    start_agent "$NAME-job$n" "$kind" "$pane" "${args[@]}" || die "$kind did not start in pane $n; look at the pane"
+    herdr pane rename "$pane" "$n · $kind · $slug" >/dev/null
+    echo "$kind  $branch" > "$STATE/job$n.meta"
+    prompt_agent "$NAME-job$n" "$pane" "Read $STATE/job$n.md and do the job it describes." \
+      || die "$kind in pane $n did not start the job; look at the pane"
+    echo "pane $n: $kind on $branch ($wt)"
+    ;;
+esac
