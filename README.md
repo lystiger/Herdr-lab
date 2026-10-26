@@ -40,7 +40,7 @@ A lighter setup, with no board or protocol: one orchestrator, six job panes, and
 - Tab `jobs` has six panes. The orchestrator gives each job an agent (`claude`, `codex` or `agy`) and a role from `six-roles/`.
 - The roles are builder, hardener, verifier, security, production, researcher and designer.
 - Each feature runs builder, then hardener, then verifier. Each job runs in its own worktree, `~/six-worktrees/<repo>/jobN`, on branch `six/N-<slug>`.
-- Merging the branches is up to you.
+- When a feature's verifier says PASS and its tests pass, the orchestrator merges the branch into main and pushes. Production deploys stay with you.
 
 By hand:
 
@@ -50,4 +50,4 @@ assign status                                 # one line per pane
 assign free N                                 # stop pane N's agent; its branch is kept
 ```
 
-Every agent runs with its permission checks off: Codex with `--dangerously-bypass-approvals-and-sandbox`, Claude and agy with `--dangerously-skip-permissions`. They can run any command as you, so read each branch before you merge it. New worktrees are trusted automatically.
+Every agent runs with its permission checks off: Codex with `--dangerously-bypass-approvals-and-sandbox`, Claude and agy with `--dangerously-skip-permissions`. They can run any command as you. New worktrees are trusted automatically.

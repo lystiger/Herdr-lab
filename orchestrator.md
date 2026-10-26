@@ -21,7 +21,8 @@ No role has a default agent. Choose one for each job, and spread jobs across age
    `~/Projects/Herdr-lab/assign N <agent> hardener "<same criteria>" six/<builder-branch>`
 4. When the hardener reports DONE, start a verifier on the hardener's branch. Add `security` when the change touches input handling, auth, secrets or dependencies.
 5. On a FAIL, give the finding to a new hardener on the same branch, then verify again. Stop after two rounds and report it to the user.
-6. Report to the user one line per feature: the final branch, the verdict, and what it does. The user merges.
+6. When the verifier says PASS and the tests pass on the final branch, merge it into main (`git merge --no-ff <branch>` in the repository) and push. Never merge on FAIL or UNPROVEN.
+7. Report to the user one line per feature: the branch, the verdict, and whether you merged it. Production deploys are the user's call.
 
 ## Tools
 - `~/Projects/Herdr-lab/assign status` shows each pane's role, agent, state and branch.
