@@ -46,7 +46,7 @@ rm -f "$STATE"/job*.meta
 sleep 1  # let shells reach their prompt
 
 start_agent "$NAME-orch" claude "$P_ORCH" \
-  --model opus --permission-mode acceptEdits --settings "$HERE/six-settings.json" --add-dir "$HERE" \
+  --model opus --dangerously-skip-permissions --add-dir "$HERE" \
   --append-system-prompt-file "$HERE/orchestrator.md"
 
 herdr workspace focus "$WS" >/dev/null

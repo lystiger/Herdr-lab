@@ -30,26 +30,24 @@ The `.agent/` directory and `roles/.built/` are generated at runtime and are exc
 
 ## Six job panes
 
-A lighter setup with no roles, board or protocol: one orchestrator and six job panes.
+A lighter setup, with no board or protocol: one orchestrator, six job panes, and the LysStack/Hermes roles.
 
 ```bash
 /path/to/Herdr-lab/six.sh [REPO_DIR]
 ```
 
 - Tab `control` runs Opus as the orchestrator. Tell it what to build.
-- Tab `jobs` has six panes. The orchestrator splits your request into jobs and hands each one to `claude`, `codex` or `agy` with `assign`.
-- Each job gets its own worktree, `~/six-worktrees/<repo>/jobN`, on branch `six/N-<slug>`. When an agent finishes, it ends with `DONE:` or `STUCK:`.
+- Tab `jobs` has six panes. The orchestrator gives each job an agent (`claude`, `codex` or `agy`) and a role from `six-roles/`.
+- The roles are builder, hardener, verifier, security, production, researcher and designer.
+- Each feature runs builder, then hardener, then verifier. Each job runs in its own worktree, `~/six-worktrees/<repo>/jobN`, on branch `six/N-<slug>`.
 - Merging the branches is up to you.
 
 By hand:
 
 ```bash
-assign N claude|codex|agy "job"   # start an agent on a job in pane N
-assign status                     # one line per pane
-assign free N                     # stop pane N's agent; its branch is kept
+assign N claude|codex|agy ROLE "job" [BASE]   # start a job in pane N; BASE is the branch to start from
+assign status                                 # one line per pane
+assign free N                                 # stop pane N's agent; its branch is kept
 ```
 
-- Claude runs in `auto` permission mode.
-- Codex runs in its `workspace-write` sandbox, which keeps `.git` read-only, so the orchestrator commits Codex's work.
-- Agy runs in `accept-edits` mode.
-- New worktrees are trusted automatically, because you created them.
+Every agent runs with its permission checks off: Codex with `--dangerously-bypass-approvals-and-sandbox`, Claude and agy with `--dangerously-skip-permissions`. They can run any command as you, so read each branch before you merge it. New worktrees are trusted automatically.

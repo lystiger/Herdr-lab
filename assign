@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
 # Hand jobs to agents in the six job panes started by six.sh. Run it inside the repository.
 #
-#   assign N claude|codex|agy "job"   start that agent on the job in pane N (1-6),
-#                                      in its own worktree on branch six/N-<slug>
+#   assign N claude|codex|agy ROLE "job" [BASE]
+#                                     start that agent on the job in pane N (1-6), in its own
+#                                     worktree on branch six/N-<slug>, made from BASE (default HEAD).
+#                                     ROLE is a file in six-roles/: builder, hardener, verifier,
+#                                     security, production, researcher, designer.
 #   assign status                     one line per pane
 #   assign free N                     stop pane N's agent so the pane can take a new job
 set -euo pipefail
 
 die() { echo "assign: $*" >&2; exit 1; }
-. "$(dirname "$(readlink -f "$0")")/six-lib.sh"
+HERE="$(dirname "$(readlink -f "$0")")"
+. "$HERE/six-lib.sh"
 REPO="$(git rev-parse --show-toplevel 2>/dev/null)" || die "run it inside the repository"
 NAME="$(basename "$REPO")"
 STATE="$REPO/.six"
@@ -48,9 +52,11 @@ case "${1:-}" in
     echo "pane $n free (its worktree and branch are kept)"
     ;;
   *)
-    check_n "${1:-}"; n="$1"; kind="${2:-}"; job="${3:-}"
+    check_n "${1:-}"; n="$1"; kind="${2:-}"; role="${3:-}"; job="${4:-}"; base="${5:-HEAD}"
     case "$kind" in claude|codex|agy) ;; *) die "agent must be claude, codex or agy" ;; esac
-    [[ -n $job ]] || die "give the job as the third argument"
+    [[ -f $HERE/six-roles/$role.md ]] || die "role must be one of: $(ls "$HERE/six-roles" | sed 's/\.md$//' | tr '\n' ' ')"
+    [[ -n $job ]] || die "give the job as the fourth argument"
+    git -C "$REPO" rev-parse -q --verify "$base^{commit}" >/dev/null || die "no branch or commit '$base'"
     st="$(status_of "$n")"
     [[ $st == free ]] || die "pane $n is busy ($st); wait, or run: assign free $n"
 
@@ -62,24 +68,27 @@ case "${1:-}" in
       [[ -z $(git -C "$wt" status --porcelain) ]] || die "$wt has uncommitted work; commit or remove it first"
       git -C "$REPO" worktree remove "$wt"
     fi
-    git -C "$REPO" worktree add -q -b "$branch" "$wt" HEAD
+    git -C "$REPO" worktree add -q -b "$branch" "$wt" "$base"
 
-    # Codex's sandbox keeps .git read-only, so the orchestrator commits its work.
-    if [[ $kind == codex ]]; then finish="leave your changes uncommitted (the orchestrator commits them)"
-    else finish="commit on your branch"; fi
-    cat > "$STATE/job$n.md" <<EOF
+    case "$role" in
+      builder|hardener|designer) finish="run the project's tests, commit on your branch" ;;
+      *) finish="put your full report in your last message (don't commit)" ;;
+    esac
+    { cat "$HERE/six-roles/$role.md"; echo; } > "$STATE/job$n.md"
+    cat >> "$STATE/job$n.md" <<EOF
+# Job
 $job
 
 ---
 You work alone in the git worktree $wt, on branch $branch. Other agents do other jobs in other worktrees: leave them alone.
-When you finish, run the project's tests, $finish, and end with one line: DONE: <what you did>.
+When you finish, $finish, and end with one line: DONE: <what you did, or your verdict>.
 If you cannot finish, end with one line: STUCK: <why>.
 EOF
 
     case "$kind" in
-      claude) args=(--permission-mode auto --add-dir "$STATE") ;;
-      codex)  args=(-s workspace-write -a never --add-dir "$STATE") ;;
-      agy)    args=(--mode accept-edits --add-dir "$REPO/.git" --add-dir "$STATE") ;;
+      claude) args=(--dangerously-skip-permissions --add-dir "$STATE") ;;
+      codex)  args=(--dangerously-bypass-approvals-and-sandbox --add-dir "$STATE") ;;
+      agy)    args=(--dangerously-skip-permissions --add-dir "$REPO/.git" --add-dir "$STATE") ;;
     esac
     pane="$(pane_of "$n")"
     herdr pane send-keys "$pane" ctrl+c >/dev/null  # clear anything left on the shell's input line
@@ -87,10 +96,10 @@ EOF
     herdr pane run "$pane" "cd $(printf '%q' "$wt")" >/dev/null
     sleep 0.5
     start_agent "$NAME-job$n" "$kind" "$pane" "${args[@]}" || die "$kind did not start in pane $n; look at the pane"
-    herdr pane rename "$pane" "$n · $kind · $slug" >/dev/null
-    echo "$kind  $branch" > "$STATE/job$n.meta"
+    herdr pane rename "$pane" "$n · $role · $kind · $slug" >/dev/null
+    echo "$role  $kind  $branch" > "$STATE/job$n.meta"
     prompt_agent "$NAME-job$n" "$pane" "Read $STATE/job$n.md and do the job it describes." \
       || die "$kind in pane $n did not start the job; look at the pane"
-    echo "pane $n: $kind on $branch ($wt)"
+    echo "pane $n: $role on $kind, branch $branch from $base ($wt)"
     ;;
 esac
